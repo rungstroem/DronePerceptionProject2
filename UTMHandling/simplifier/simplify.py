@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-f = open("UTM_positions2.csv", 'r');
+f = open("UTMCoordinates.csv", 'r');
 from math import pi, cos, acos, sin, atan, atan2, sqrt
 import matplotlib.pyplot as plt
 
