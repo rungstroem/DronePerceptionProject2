@@ -10,6 +10,19 @@ import sys
 def loadImage(name):
 	return cv2.imread("../IMG/"+name);
 
+def scale_img(img):
+	sf = 30;
+	(h,w) = img.shape[:2];
+	dim = (int((w/100)*sf), int((h/100)*sf));
+
+	return cv2.resize(img, dim, cv2.INTER_AREA);
+
+def scale_camera_mat(K):
+	scalingFactor = 0.3;
+	Kmat = K*scalingFactor;
+	Kmat[2][2] = 1;
+	return Kmat;
+
 def extractSift(img):
 	imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY);
 	sift = cv2.SIFT_create();
@@ -95,18 +108,20 @@ def get_camera_poses(E, p1F, p2F, K):
 	# Create mat with rotation and translation from starting point (Null mat)
 	mat2 = np.hstack((R,t));
 	# Create the poses by multiplying with camera matrix, ie. the intrinsic parameters for camera
-	pose1 = K @ mat1;
-	pose2 = K @ mat2;
-	return(pose1, pose2);
+	#pose1 = K @ mat1;
+	#pose2 = K @ mat2;
+	return(mat1, mat2);
 
-def reconstruct_3d(pose1, pose2, p1F, p2F):
+def reconstruct_3d(mat1, mat2, p1F, p2F, K):
+	mat1 = K @ mat1;
+	mat2 = K @ mat2;
 	# Get 3D points from triangulation
-	points3D = cv2.triangulatePoints(pose1, pose2, p1F.T, p2F.T);
+	points3D = cv2.triangulatePoints(mat1, mat2, p1F.T, p2F.T);
 	# Scale points with z
 	points3D /= points3D[3,:];
 	return points3D;
 
-def visualize_3D(p3D):
+def visualize_3D(p3D, mat1, mat2):
 	pangolin.CreateWindowAndBind('main', 640, 480);
 	gl.glEnable(gl.GL_DEPTH_TEST);
 	scam = pangolin.OpenGlRenderState(
@@ -123,29 +138,38 @@ def visualize_3D(p3D):
 		gl.glClearColor(1.0,1.0,1.0,1.0);
 		dcam.Activate(scam);
 
-		#gl.glPointSize(5);
-		#gl.glColor3f(0.0,0.0,1.0);
-		#pangolin.DrawPoints(p3D);
+		gl.glPointSize(5);
+		gl.glColor3f(0.0,0.0,1.0);
+		pangolin.DrawPoints(p3D);
 		
 		# Attempt to draw camera
 		gl.glLineWidth(2);
 		gl.glColor3f(1.0,0.0,0.0);
-		#pose = np.identity(4);
-		pose = (np.hstack((pose1.T, np.zeros((4,1))))).T;
-		print(pose)
-		#pangolin.DrawCamera(pose, 0.5,0.75,0.8);
+		pose1 = (np.hstack((mat1.T, np.zeros((4,1))))).T;
+		pose1[3][3] = 1;
+		pangolin.DrawCamera(pose1, 0.5,0.75,0.8);
+		
+		gl.glColor3f(0.0,1.0,0.0);
+		pose2 = (np.hstack((mat2.T, np.zeros((4,1))))).T;
+		pose2[3][3] = 1;
+		pangolin.DrawCamera(pose2, 0.5,0.75,0.8);
 
-		#pangolin.FinishFrame();
+		pangolin.FinishFrame();
 
 def main():
 	global show;
 	show = False;
 	# The camera matrix contains focal length and ...
-	K = np.array([[704, 0, 637],[0, 704, 376],[0, 0, 1]]);	#Needed to find essential matrix
+	K = np.array([[2676, 0, (3840/2-35.24)],[0, 2676, (2160/2-279)],[0, 0, 1]]);	#Needed to find essential matrix
 	
 	img1 = loadImage("frame0.jpg");
 	img2 = loadImage("frame50.jpg");
-	
+
+	img1 = scale_img(img1);
+	img2 = scale_img(img2);
+
+	K = scale_camera_mat(K);
+
 	# Extract keypoints and descriptors from both images
 	kp1, des1 = extractSift(img1);
 	kp2, des2 = extractSift(img2);
@@ -164,9 +188,8 @@ def main():
 
 	# Find new coordinates with the filtered list of matches
 	(p1FFiltered, p2FFiltered) = extract_matched_points(filteredMatches, kp1, kp2);
-	print(p1FFiltered, p2FFiltered);
 	# Find the epipolar line with the fundamental matrix F
-	L2 = get_epipolar_line(p1Filtered, p2Filtered);
+	L2 = get_epipolar_line(p1FFiltered, p2FFiltered);
 	
 	# Decompose essential matrix into 2XRotation matrix and 2XTranslation vector
 	(R1, R2, t1, t2) = decompose_essential_matrix(E);
@@ -175,7 +198,8 @@ def main():
 	(pose1, pose2) = get_camera_poses(E, p1FFiltered, p2FFiltered, K);
 	
 	# extract 3D points
-	D3Points = reconstruct_3d(pose1, pose2, p1FFiltered, p2FFiltered);
-
-
+	D3Points = reconstruct_3d(pose1, pose2, p1FFiltered, p2FFiltered, K);
+	
+	# Plots points and camera poses in 3D environment - My work not the teachers...
+	#visualize_3D(D3Points, pose1, pose2);
 main();
