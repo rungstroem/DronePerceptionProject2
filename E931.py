@@ -8,7 +8,7 @@ import sys
 #from visual_slam import FrameGenerator, Map, VisualSlam, Observation
 
 def loadImage(name):
-	return cv2.imread(name);
+	return cv2.imread("../IMG/"+name);
 
 def extractSift(img):
 	imgGray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY);
@@ -105,7 +105,7 @@ def reconstruct_3d(pose1, pose2, p1F, p2F):
 	# Scale points with z
 	points3D /= points3D[3,:];
 	return points3D;
-'''
+
 def visualize_3D(p3D):
 	pangolin.CreateWindowAndBind('main', 640, 480);
 	gl.glEnable(gl.GL_DEPTH_TEST);
@@ -136,15 +136,15 @@ def visualize_3D(p3D):
 		#pangolin.DrawCamera(pose, 0.5,0.75,0.8);
 
 		#pangolin.FinishFrame();
-'''
+
 def main():
 	global show;
 	show = False;
 	# The camera matrix contains focal length and ...
 	K = np.array([[704, 0, 637],[0, 704, 376],[0, 0, 1]]);	#Needed to find essential matrix
 	
-	img1 = loadImage("my_photo-1.jpg");
-	img2 = loadImage("my_photo-2.jpg");
+	img1 = loadImage("frame0.jpg");
+	img2 = loadImage("frame50.jpg");
 	
 	# Extract keypoints and descriptors from both images
 	kp1, des1 = extractSift(img1);
