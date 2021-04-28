@@ -820,7 +820,7 @@ class VisualSlam:
                 break
 
 
-vs = VisualSlam(r"input/frames")
+vs = VisualSlam(r"../IMG")
 vs.set_camera_matrix()
 vs.run()
 
